@@ -1,0 +1,63 @@
+#!/bin/sh
+
+alternate() {
+	dbus-list >&2
+	exit 1
+}
+
+inappropriate() {
+	printf '"%s" is inappropriate for "%s" option\n' "$2" "$1" >&2
+	exit 1
+}
+
+introspect() {
+	local i=0
+	dbus-send $@ | sed -e '1d' - | head -n -1 | while read line; do
+		i=$(expr $i \+ 1)
+		[ $i -ne 1 ] && echo "$line" && continue
+		printf '%s\n' "$(echo -n "$line" | rev | head -c -8 | rev)"
+	done >&2 | echo 'cat /node' | xmllint --shell /dev/stderr 2<&-
+}
+
+readonly opts="-l dest:path:where: -o d:p:w:"
+args=$(getopt -a $opts -s sh -- "$@")
+[ $? -ne 0 ] && exit 1
+eval set -- "$args"
+
+readonly aln="[A-Za-z][A-Za-z0-9]*"
+readonly num="[1-9][0-9]*"
+readonly dest_pattern="^:$num\.$num$|^$aln(\.$aln)+$"
+readonly path_pattern="^/$aln(/$aln)*$"
+
+dest=
+path=
+where=
+until [ "$1" = "--" ]; do
+	case "$1" in
+		-d | --dest)
+			[ $(echo "$2" | grep -E "$dest_pattern") ] || inappropriate $@
+			dest="$2"
+			shift
+		;;
+		-p | --path)
+			[ $(echo "$2" | grep -E "$path_pattern") ] || inappropriate $@
+			path="$2"
+			shift
+		;;
+		-w | --where)
+			case "$2" in
+				session | system) where=$2;;
+			esac
+			shift
+		;;
+	esac
+	shift
+done
+shift
+
+[ $dest ] || alternate
+[ $path ] || path=/
+[ $where ] || where=session
+
+readonly iface=org.freedesktop.DBus.Introspectable.Introspect
+introspect --print-reply --$where --dest="$dest" $path $iface
