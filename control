@@ -1,0 +1,6 @@
+Architecture: all
+Depends: dbus (>=1.12.16-2), libxml2-utils (>=2.9.10)
+Description: DBus Introspector
+Maintainer: kei-g <km.8k6ce+debpkg@gmail.com>
+Package: dbus-introspect
+Version: 1.0

@@ -1,0 +1,28 @@
+#!/bin/sh
+
+readonly opts="-l where: -o w:"
+args=$(getopt -a $opts -s sh -- "$@")
+[ $? -ne 0 ] && exit 1
+eval set -- "$args"
+
+where=
+until [ "$1" = "--" ]; do
+	case "$1" in
+		-w | --where)
+			case "$2" in
+				session | system) where=$2;;
+			esac
+			shift
+		;;
+	esac
+	shift
+done
+shift
+
+[ $where ] || where=session
+
+readonly dest="org.freedesktop.DBus"
+readonly iface="org.freedesktop.DBus.ListNames"
+readonly path=/
+dbus-send --print-reply --$where --dest="$dest" $path $iface | \
+	grep -E "^.*string " | tr -d ' ' | cut -d '"' -f 2
